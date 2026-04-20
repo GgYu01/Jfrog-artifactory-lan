@@ -4,7 +4,7 @@
 
 ## 解决的问题
 - 用 HTTP 在局域网里快速部署一个可长期保存的制品库
-- 管理员固定为 `admin / Aa123456`
+- 管理员账号固定为 `admin`，密码由你在 `.env` 里设置
 - 普通使用者固定为 `user / user`
 - 普通使用者只做上传和下载，不暴露删除能力
 - 默认用于存放两类内容：
@@ -12,7 +12,9 @@
   - patch 包
 
 ## 关键设计
-- Artifactory 管理后台默认只绑定在宿主机本机 `http://127.0.0.1:8082`
+- Artifactory 管理后台默认绑定在 `0.0.0.0:8082`
+- 实际访问后台时请用 `http://主机IP:8082` 或 `http://主机名:8082`，不要把 `0.0.0.0` 当成浏览器访问地址
+- 因为后台默认对局域网可达，第一次启动前必须先修改 `.env` 里的 `ARTIFACTORY_ADMIN_PASSWORD`
 - 普通用户走 `http://主机:8080`
 - 普通用户入口是仓库自带 Portal，而不是直接把 Artifactory 后台开放给所有人
 - Portal 只暴露两条逻辑通道：
@@ -45,14 +47,15 @@
 ## 快速开始步骤
 1. 复制环境文件：
    - `cp .env.example .env`
-2. 如果你希望改端口、密码或仓库 key，编辑 `.env`
-3. 准备主机目录和上游包：
+2. 编辑 `.env`，至少把 `ARTIFACTORY_ADMIN_PASSWORD` 改成你自己的密码
+3. 如果你希望改端口、Portal 密码或仓库 key，也在 `.env` 一起改
+4. 准备主机目录和上游包：
    - `bash scripts/install-or-update.sh`
-4. 启动服务：
+5. 启动服务：
    - `bash scripts/start.sh`
-5. 访问：
+6. 访问：
    - 普通用户 Portal：`http://主机:8080`
-   - Artifactory 管理后台：`http://127.0.0.1:8082`
+   - Artifactory 管理后台：`http://主机:8082`
 
 ## 常用命令
 - 启动：`bash scripts/start.sh`
@@ -77,6 +80,27 @@
 - `vendor/upstream`
 
 Artifactory 的 `var` 整体被绑定到宿主机，同时又把关键子路径单独显式挂载，便于长期留痕、排障和按目录观察。
+
+## Docker 宿主机映射
+当前 `docker-compose.yml` 默认把这些宿主机路径映射进容器：
+
+- `./data/postgres/data` -> `/var/lib/postgresql/data`
+- `./data/artifactory/var` -> `/var/opt/jfrog/artifactory`
+- `./data/artifactory/var/bootstrap` -> `/var/opt/jfrog/artifactory/bootstrap`
+- `./data/artifactory/var/data` -> `/var/opt/jfrog/artifactory/data`
+- `./data/artifactory/var/etc` -> `/var/opt/jfrog/artifactory/etc`
+- `./data/artifactory/var/log` -> `/var/opt/jfrog/artifactory/log`
+- `./data/artifactory/var/backup` -> `/var/opt/jfrog/artifactory/backup`
+- `./data/artifactory/var/etc/access` -> `/var/opt/jfrog/artifactory/etc/access`
+- `./data/artifactory/var/etc/security` -> `/var/opt/jfrog/artifactory/etc/security`
+- `./data/artifactory/var/etc/artifactory` -> `/var/opt/jfrog/artifactory/etc/artifactory`
+- `./data/artifactory/var/etc/router` -> `/var/opt/jfrog/artifactory/etc/router`
+- `/etc/localtime` -> `/etc/localtime:ro`（`postgres` 和 `artifactory` 都会挂）
+
+Portal 默认不挂业务数据目录，只使用容器内只读根文件系统和 `tmpfs /tmp`。
+
+这些映射现在可以改，但默认还是写死在 [`docker-compose.yml`](/workspaces/jfrog-artifactory-lan/docker-compose.yml) 里，不是通过 `.env` 参数控制。
+如果你要改宿主机目录，请同时检查 `scripts/prepare-host.sh`、`scripts/backup-once.sh`、`scripts/lib/common.sh` 和相关文档，确保目录创建、备份和排障路径一起同步。
 
 ## 版本策略
 - `scripts/install-or-update.sh` 默认只保证当前 `.env` 里配置的版本已经下载到本地

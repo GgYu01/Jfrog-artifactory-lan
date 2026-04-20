@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 load_env
-ARTIFACTORY_URL="$(configured_admin_url)"
+ARTIFACTORY_ACCESS_URL="$(configured_admin_access_url)"
 ARTIFACTORY_PROBE_URL="$(admin_probe_base_url)"
 
 if compose_available; then
@@ -17,9 +17,9 @@ else
   warn "Docker is not available in this environment."
 fi
 
-printf 'Configured portal URL (host-local): http://127.0.0.1:%s\n' "${PORTAL_PORT}"
-printf 'Configured portal URL (LAN): http://<host>:%s\n' "${PORTAL_PORT}"
-printf 'Configured Artifactory URL: %s\n' "${ARTIFACTORY_URL}"
+printf 'Configured portal URL: http://<host>:%s\n' "${PORTAL_PORT}"
+printf 'Configured Artifactory access URL: %s\n' "${ARTIFACTORY_ACCESS_URL}"
+printf 'Configured Artifactory bind address: %s:%s\n' "${ARTIFACTORY_ADMIN_BIND_HOST}" "${ARTIFACTORY_ADMIN_PORT}"
 
 if command -v curl >/dev/null 2>&1; then
   if curl -fsS "http://127.0.0.1:${PORTAL_PORT}/api/health" >/dev/null 2>&1; then

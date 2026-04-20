@@ -75,14 +75,14 @@ cp .env.example .env
    - 如果 `8080` 被占用，就改成别的，比如 `18080`
 
 2. `ARTIFACTORY_ADMIN_PORT`
-   - 管理员本机访问后台的端口
+   - 管理员访问后台的端口
    - 默认是 `8082`
    - 如果 `8082` 被占用，就改掉
 
 3. `ARTIFACTORY_ADMIN_PASSWORD`
    - 后台管理员密码
-   - 默认是 `Aa123456`
-   - 正式交付前建议改
+   - 模板值是 `CHANGE_ME_BEFORE_STARTING`
+   - 第一次启动前必须改
 
 4. `PORTAL_PASSWORD`
    - 普通用户 Portal 密码
@@ -93,6 +93,7 @@ cp .env.example .env
    - 业务文件真实写入的 Artifactory 仓库名
    - 默认是 `lan-drop-local`
    - 如果你们现场有固定命名要求，这里改成你们自己的名字
+   - 这不是本地目录，也不是相对于脚本执行路径的文件夹
 
 如果你不确定其他值，不要乱改。  
 其他参数的详细解释看：
@@ -149,9 +150,9 @@ bash scripts/status.sh
 部署成功后，你会得到三块东西：
 
 ### 2.1 管理后台
-- 地址：`http://127.0.0.1:8082`
-- 作用：管理员本机访问后台
-- 账号：`admin / Aa123456`
+- 地址：`http://<这台机器的局域网IP>:8082`
+- 作用：管理员访问后台
+- 账号：`admin / 你在 .env 里设置的密码`
 
 ### 2.2 普通用户入口
 - 地址：`http://<这台机器的局域网IP>:8080`
@@ -164,6 +165,25 @@ bash scripts/status.sh
 - `data/backups`
 - `vendor/upstream`
 
+### 2.4 Docker 宿主机路径映射
+当前默认这些宿主机路径会映射到容器内部：
+- `./data/postgres/data` -> `/var/lib/postgresql/data`
+- `./data/artifactory/var` -> `/var/opt/jfrog/artifactory`
+- `./data/artifactory/var/bootstrap` -> `/var/opt/jfrog/artifactory/bootstrap`
+- `./data/artifactory/var/data` -> `/var/opt/jfrog/artifactory/data`
+- `./data/artifactory/var/etc` -> `/var/opt/jfrog/artifactory/etc`
+- `./data/artifactory/var/log` -> `/var/opt/jfrog/artifactory/log`
+- `./data/artifactory/var/backup` -> `/var/opt/jfrog/artifactory/backup`
+- `./data/artifactory/var/etc/access` -> `/var/opt/jfrog/artifactory/etc/access`
+- `./data/artifactory/var/etc/security` -> `/var/opt/jfrog/artifactory/etc/security`
+- `./data/artifactory/var/etc/artifactory` -> `/var/opt/jfrog/artifactory/etc/artifactory`
+- `./data/artifactory/var/etc/router` -> `/var/opt/jfrog/artifactory/etc/router`
+
+补充说明：
+- `portal` 默认不挂业务数据目录，只在容器里使用 `tmpfs /tmp`
+- 这些宿主机路径目前可以改，但默认是直接写在 [`docker-compose.yml`](/workspaces/jfrog-artifactory-lan/docker-compose.yml) 里，不是 `.env` 参数
+- 如果你要改这些路径，要连同 `scripts/lib/common.sh`、`scripts/prepare-host.sh`、`scripts/backup-once.sh` 一起核对
+
 在项目语言里：
 - 管理后台 = 管理员工作台
 - Portal = 普通用户投递台
@@ -174,6 +194,10 @@ bash scripts/status.sh
 ## 3. `.env` 应该怎么改
 
 ## 3.1 第一次部署通常只改这几项
+
+特别提醒：
+- 因为后台默认监听 `0.0.0.0`，`ARTIFACTORY_ADMIN_PASSWORD` 不是“建议改”，而是第一次启动前必须改
+- 如果你不改，`bash scripts/start.sh` 会直接拒绝启动
 
 ### 如果端口没冲突
 你可以保留：
@@ -198,7 +222,7 @@ CONTENT_REPOSITORY_KEY=你的仓库名
 ### 如果你什么都不想折腾
 那就：
 - 直接复制 `.env.example`
-- 不改任何值
+- 至少把 `ARTIFACTORY_ADMIN_PASSWORD` 改掉
 - 继续执行部署命令
 
 ## 3.2 哪些参数第一次不要乱动
@@ -218,6 +242,7 @@ CONTENT_REPOSITORY_KEY=你的仓库名
 原因：
 - 这些大多是底座参数
 - 你先把服务跑起来，比一上来做过多定制更重要
+- 其中 `ARTIFACTORY_ADMIN_BIND_HOST` 默认已经是 `0.0.0.0`，浏览器访问时请用主机 IP，不要输入 `0.0.0.0`
 
 ---
 
@@ -301,9 +326,9 @@ http://<这台机器的局域网IP>:8080
 - 能下载
 
 ## 5.2 对管理员来说
-在宿主机本机打开：
+在浏览器里打开：
 ```text
-http://127.0.0.1:8082
+http://<这台机器的局域网IP>:8082
 ```
 
 成功标志：
@@ -338,9 +363,9 @@ bash scripts/status.sh
 - docker compose ps 输出
 
 ## 6.3 自动建仓失败
-在宿主机本机打开后台：
+在浏览器里打开后台：
 ```text
-http://127.0.0.1:8082
+http://<这台机器的局域网IP>:8082
 ```
 
 手工创建：

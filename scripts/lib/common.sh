@@ -95,15 +95,23 @@ compose_run() {
   (cd "${REPO_ROOT}" && docker compose "$@")
 }
 
-admin_probe_host() {
+is_wildcard_bind_host() {
   case "${ARTIFACTORY_ADMIN_BIND_HOST:-127.0.0.1}" in
     0.0.0.0|'::'|'[::]')
-      printf '127.0.0.1'
+      return 0
       ;;
     *)
-      printf '%s' "${ARTIFACTORY_ADMIN_BIND_HOST:-127.0.0.1}"
+      return 1
       ;;
   esac
+}
+
+admin_probe_host() {
+  if is_wildcard_bind_host; then
+    printf '127.0.0.1'
+  else
+    printf '%s' "${ARTIFACTORY_ADMIN_BIND_HOST:-127.0.0.1}"
+  fi
 }
 
 admin_probe_base_url() {
@@ -112,6 +120,24 @@ admin_probe_base_url() {
 
 configured_admin_url() {
   printf 'http://%s:%s' "${ARTIFACTORY_ADMIN_BIND_HOST:-127.0.0.1}" "${ARTIFACTORY_ADMIN_PORT:-8082}"
+}
+
+configured_admin_access_url() {
+  if is_wildcard_bind_host; then
+    printf 'http://<host>:%s' "${ARTIFACTORY_ADMIN_PORT:-8082}"
+  else
+    printf '%s' "$(configured_admin_url)"
+  fi
+}
+
+require_safe_admin_password_for_lan_bind() {
+  if [[ "${ARTIFACTORY_ADMIN_PASSWORD:-}" == "CHANGE_ME_BEFORE_STARTING" ]]; then
+    fail "ARTIFACTORY_ADMIN_PASSWORD is still using the template value in ${ENV_FILE}. Change it before running start.sh."
+  fi
+
+  if is_wildcard_bind_host && [[ "${ARTIFACTORY_ADMIN_PASSWORD:-}" == "Aa123456" ]]; then
+    fail "ARTIFACTORY_ADMIN_PASSWORD is still using the template/default value while ARTIFACTORY_ADMIN_BIND_HOST=${ARTIFACTORY_ADMIN_BIND_HOST}. Change the admin password in ${ENV_FILE} before running start.sh."
+  fi
 }
 
 latest_backup_archive() {

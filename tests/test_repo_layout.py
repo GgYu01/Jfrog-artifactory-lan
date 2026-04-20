@@ -17,6 +17,8 @@ class RepoLayoutTests(unittest.TestCase):
             "CONTENT_REPOSITORY_KEY=",
         ]:
             self.assertIn(key, env_text)
+        self.assertIn("ARTIFACTORY_ADMIN_BIND_HOST=0.0.0.0", env_text)
+        self.assertIn("ARTIFACTORY_ADMIN_PASSWORD=CHANGE_ME_BEFORE_STARTING", env_text)
 
     def test_bootstrap_creds_matches_required_admin_default(self):
         creds = (

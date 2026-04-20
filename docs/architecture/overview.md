@@ -5,7 +5,7 @@
 
 ## Components
 - `postgres`: persistent metadata database for Artifactory.
-- `artifactory`: JFrog Artifactory OSS service bound to `127.0.0.1:8082` by default for operator-only access.
+- `artifactory`: JFrog Artifactory OSS service bound to `0.0.0.0:8082` by default so administrators can reach the UI from the LAN.
 - `portal`: repo-local ordinary-user web portal exposed on LAN HTTP port `8080`.
 
 ## Why the portal exists
@@ -16,7 +16,7 @@
   - uploads are allowed
   - downloads are allowed
   - delete is not implemented
-  - Artifactory admin access remains separate and localhost-bound on `8082` by default
+  - Artifactory admin access remains a separate credential surface on `8082`; ordinary users are still expected to work through the portal instead of the admin UI
 
 ## Content model
 - Default Artifactory content repository: `lan-drop-local`
@@ -42,6 +42,21 @@ The bootstrap script attempts to create `lan-drop-local` as a Generic local repo
   - `etc/artifactory`
   - `etc/router`
 - Persist PostgreSQL data separately.
+
+Current default host-to-container mappings are:
+- `./data/postgres/data` -> `/var/lib/postgresql/data`
+- `./data/artifactory/var` -> `/var/opt/jfrog/artifactory`
+- `./data/artifactory/var/bootstrap` -> `/var/opt/jfrog/artifactory/bootstrap`
+- `./data/artifactory/var/data` -> `/var/opt/jfrog/artifactory/data`
+- `./data/artifactory/var/etc` -> `/var/opt/jfrog/artifactory/etc`
+- `./data/artifactory/var/log` -> `/var/opt/jfrog/artifactory/log`
+- `./data/artifactory/var/backup` -> `/var/opt/jfrog/artifactory/backup`
+- `./data/artifactory/var/etc/access` -> `/var/opt/jfrog/artifactory/etc/access`
+- `./data/artifactory/var/etc/security` -> `/var/opt/jfrog/artifactory/etc/security`
+- `./data/artifactory/var/etc/artifactory` -> `/var/opt/jfrog/artifactory/etc/artifactory`
+- `./data/artifactory/var/etc/router` -> `/var/opt/jfrog/artifactory/etc/router`
+
+Those host paths are currently defined directly in `docker-compose.yml`. They are configurable by editing the compose file, but they are not yet parameterized in `.env`.
 
 ## Backup model
 - Default backup policy keeps a single compressed snapshot generation.

@@ -10,13 +10,13 @@
   - `ARTIFACTORY_ADMIN_PASSWORD`
   - `PORTAL_PASSWORD`
   - `CONTENT_REPOSITORY_KEY`
-- 如果你没有端口冲突、没有密码要求、也不想改仓库名，那么复制 `.env.example` 以后基本可以直接用默认值。
+- 如果你没有端口冲突，也不想改仓库名，那么第一次部署时最少要做的事就是：复制 `.env.example` 后，把 `ARTIFACTORY_ADMIN_PASSWORD` 改成你自己的值。
 
 ## 使用顺序
 1. `cp .env.example .env`
 2. 打开 `.env`
 3. 先看“第一次部署最应该确认的参数”
-4. 如果不需要改，直接保存
+4. 除了 `ARTIFACTORY_ADMIN_PASSWORD` 以外，如果其他参数不需要改，就直接保存
 5. 执行：
 ```bash
 bash scripts/install-or-update.sh
@@ -38,20 +38,21 @@ bash scripts/start.sh
   - `http://主机IP:18080`
 
 ### 2. `ARTIFACTORY_ADMIN_PORT`
-- 这是管理员在宿主机本机访问 Artifactory 后台的端口
+- 这是管理员访问 Artifactory 后台的端口
 - 默认值：`8082`
 - 什么时候一定要改：
   - 你的主机上 `8082` 已经被占用
 - 改完以后后台地址会变成：
-  - `http://127.0.0.1:<你改后的端口>`
+  - `http://主机IP:<你改后的端口>`
 
 ### 3. `ARTIFACTORY_ADMIN_PASSWORD`
 - 这是 Artifactory 后台管理员密码
-- 默认值：`Aa123456`
-- 什么时候建议改：
-  - 你不想继续使用默认后台密码
+- 模板值：`CHANGE_ME_BEFORE_STARTING`
+- 什么时候必须改：
+  - 第一次启动前必须改
 - 改的时候注意：
   - 这是管理员密码，不是普通用户密码
+  - 因为后台默认监听 `0.0.0.0`，如果不改这个值，`bash scripts/start.sh` 会拒绝启动
   - 改完以后脚本会用这个新密码做后台 bootstrap
   - 如果密码里包含空格，建议用双引号包起来
 - 例子：
@@ -71,6 +72,7 @@ ARTIFACTORY_ADMIN_PASSWORD="My Strong Password 2026"
 ### 5. `CONTENT_REPOSITORY_KEY`
 - 这是 Artifactory 里真正存放业务文件的本地仓库名
 - 默认值：`lan-drop-local`
+- 它不是宿主机本地目录，也不是相对于脚本执行路径的文件夹
 - 什么时候改：
   - 你们现场已经有固定命名规范
   - 你不想继续用默认仓库名
@@ -165,16 +167,17 @@ releases-docker.jfrog.io
   - 控制后台绑定到哪个地址
 - 默认值：
 ```text
-127.0.0.1
+0.0.0.0
 ```
 - 这代表什么：
-  - 只有宿主机本机能直接打开后台
-- 为什么默认这样设计：
-  - 因为普通用户应该走 Portal，不应该直接接触后台
+  - 容器会监听所有网卡
+- 实际访问怎么写：
+  - 浏览器里应访问 `http://主机IP:8082` 或 `http://主机名:8082`
+  - 不要直接在浏览器里输入 `http://0.0.0.0:8082`
 - 一般要不要改：
   - 一般不要改
-- 特别提醒：
-  - 如果你的目标是“普通用户只走 Portal”，这里不要改成 `0.0.0.0`
+- 什么时候会改：
+  - 你明确要限制只允许本机访问后台时，可以改回 `127.0.0.1`
 
 ### `ARTIFACTORY_ADMIN_PORT`
 - 作用：
@@ -225,10 +228,10 @@ admin
   - 后台管理员密码
 - 默认值：
 ```text
-Aa123456
+CHANGE_ME_BEFORE_STARTING
 ```
-- 一般什么时候改：
-  - 正式交付前建议改
+- 什么时候改：
+  - 第一次启动前必须改
 - 改完以后要不要额外执行命令：
   - 只要你后面仍按标准流程执行 `install-or-update.sh` 和 `start.sh`，脚本会自动使用新值
 - 如果你是服务已经部署完后才临时改这个值：
@@ -334,7 +337,7 @@ ARTIFACTORY_ADMIN_PORT=18082
 ```
 改完以后管理员访问：
 ```text
-http://127.0.0.1:18082
+http://主机IP:18082
 ```
 
 ## 场景三：你要换普通用户密码
@@ -371,6 +374,27 @@ CONTENT_REPOSITORY_KEY=新的仓库名
 改完以后：
 - 自动建仓成功时，脚本会用新名字创建
 - 自动建仓失败时，你需要去后台手工建同名 Generic 仓库
+
+## Docker 宿主机路径映射
+
+当前 `docker-compose.yml` 默认把这些宿主机路径映射到容器内部：
+- `./data/postgres/data` -> `/var/lib/postgresql/data`
+- `./data/artifactory/var` -> `/var/opt/jfrog/artifactory`
+- `./data/artifactory/var/bootstrap` -> `/var/opt/jfrog/artifactory/bootstrap`
+- `./data/artifactory/var/data` -> `/var/opt/jfrog/artifactory/data`
+- `./data/artifactory/var/etc` -> `/var/opt/jfrog/artifactory/etc`
+- `./data/artifactory/var/log` -> `/var/opt/jfrog/artifactory/log`
+- `./data/artifactory/var/backup` -> `/var/opt/jfrog/artifactory/backup`
+- `./data/artifactory/var/etc/access` -> `/var/opt/jfrog/artifactory/etc/access`
+- `./data/artifactory/var/etc/security` -> `/var/opt/jfrog/artifactory/etc/security`
+- `./data/artifactory/var/etc/artifactory` -> `/var/opt/jfrog/artifactory/etc/artifactory`
+- `./data/artifactory/var/etc/router` -> `/var/opt/jfrog/artifactory/etc/router`
+
+补充说明：
+- 这些是 Docker bind mount 的宿主机路径，不是 `CONTENT_REPOSITORY_KEY`
+- `CONTENT_REPOSITORY_KEY` 只决定 Artifactory 内部仓库名，例如 `lan-drop-local/firmware/...`
+- 这些路径现在可以改，但默认还是直接写在 [`docker-compose.yml`](/workspaces/jfrog-artifactory-lan/docker-compose.yml) 里，不是 `.env` 参数
+- 如果你改这些宿主机目录，还要同步检查 `scripts/lib/common.sh`、`scripts/prepare-host.sh`、`scripts/backup-once.sh`
 
 ---
 

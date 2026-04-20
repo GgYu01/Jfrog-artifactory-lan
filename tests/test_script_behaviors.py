@@ -58,6 +58,110 @@ class ScriptBehaviorTests(unittest.TestCase):
             ).read_text(encoding="utf-8").strip()
             self.assertEqual(rendered, f"admin@*={password}")
 
+    def test_common_helpers_treat_wildcard_bind_as_loopback_for_probes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            self.copy_repo_files(
+                repo_root,
+                [
+                    "scripts/lib/common.sh",
+                ],
+            )
+
+            env_text = "\n".join(
+                [
+                    "ARTIFACTORY_ADMIN_BIND_HOST=0.0.0.0",
+                    "ARTIFACTORY_ADMIN_PORT=18082",
+                ]
+            ) + "\n"
+            (repo_root / ".env").write_text(env_text, encoding="utf-8")
+            (repo_root / ".env.example").write_text(env_text, encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-lc",
+                    "source scripts/lib/common.sh && load_env && printf '%s\\n%s\\n%s\\n' "
+                    "\"$(admin_probe_host)\" "
+                    "\"$(configured_admin_url)\" "
+                    "\"$(configured_admin_access_url)\"",
+                ],
+                cwd=repo_root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+            lines = result.stdout.strip().splitlines()
+            self.assertEqual(lines, ["127.0.0.1", "http://0.0.0.0:18082", "http://<host>:18082"])
+
+    def test_common_guard_rejects_default_admin_password_on_wildcard_bind(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            self.copy_repo_files(
+                repo_root,
+                [
+                    "scripts/lib/common.sh",
+                ],
+            )
+
+            env_text = "\n".join(
+                [
+                    "ARTIFACTORY_ADMIN_BIND_HOST=0.0.0.0",
+                    "ARTIFACTORY_ADMIN_PORT=8082",
+                    "ARTIFACTORY_ADMIN_PASSWORD=CHANGE_ME_BEFORE_STARTING",
+                ]
+            ) + "\n"
+            (repo_root / ".env").write_text(env_text, encoding="utf-8")
+            (repo_root / ".env.example").write_text(env_text, encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-lc",
+                    "source scripts/lib/common.sh && load_env && require_safe_admin_password_for_lan_bind",
+                ],
+                cwd=repo_root,
+                text=True,
+                capture_output=True,
+            )
+            combined_output = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Change it before running start.sh.", combined_output)
+
+    def test_common_guard_rejects_legacy_default_admin_password_on_wildcard_bind(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            self.copy_repo_files(
+                repo_root,
+                [
+                    "scripts/lib/common.sh",
+                ],
+            )
+
+            env_text = "\n".join(
+                [
+                    "ARTIFACTORY_ADMIN_BIND_HOST=0.0.0.0",
+                    "ARTIFACTORY_ADMIN_PORT=8082",
+                    "ARTIFACTORY_ADMIN_PASSWORD=Aa123456",
+                ]
+            ) + "\n"
+            (repo_root / ".env").write_text(env_text, encoding="utf-8")
+            (repo_root / ".env.example").write_text(env_text, encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-lc",
+                    "source scripts/lib/common.sh && load_env && require_safe_admin_password_for_lan_bind",
+                ],
+                cwd=repo_root,
+                text=True,
+                capture_output=True,
+            )
+            combined_output = result.stdout + result.stderr
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("template/default value", combined_output)
+
     def test_status_survives_compose_ps_failure(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             repo_root = Path(temp_dir)
@@ -72,7 +176,7 @@ class ScriptBehaviorTests(unittest.TestCase):
             env_text = "\n".join(
                 [
                     "PORTAL_PORT=8080",
-                    "ARTIFACTORY_ADMIN_BIND_HOST=127.0.0.1",
+                    "ARTIFACTORY_ADMIN_BIND_HOST=0.0.0.0",
                     "ARTIFACTORY_ADMIN_PORT=8082",
                 ]
             ) + "\n"
@@ -118,7 +222,9 @@ class ScriptBehaviorTests(unittest.TestCase):
             )
             combined_output = result.stdout + result.stderr
             self.assertEqual(result.returncode, 0, msg=combined_output)
-            self.assertIn("Configured portal URL (host-local): http://127.0.0.1:8080", combined_output)
+            self.assertIn("Configured portal URL: http://<host>:8080", combined_output)
+            self.assertIn("Configured Artifactory access URL: http://<host>:8082", combined_output)
+            self.assertIn("Configured Artifactory bind address: 0.0.0.0:8082", combined_output)
             self.assertIn("Latest backup archive:", combined_output)
             self.assertIn("docker compose ps failed; continuing with static status output.", combined_output)
 
