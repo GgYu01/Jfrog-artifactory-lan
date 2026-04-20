@@ -1,0 +1,14 @@
+data/
+vendor/
+tmp/
+reports/
+.env
+*.pyc
+__pycache__/
+portal/.cache/
+tmp/*.md
+context-engine-*.log
+task_plan.md
+findings.md
+progress.md
+.planning/

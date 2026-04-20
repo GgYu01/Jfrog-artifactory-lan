@@ -1,0 +1,17 @@
+name = "repo-reviewer"
+description = "Read-only reviewer for deployment, persistence, and portal changes in this repository."
+model = "gpt-5.4"
+
+[tools]
+read = true
+bash = true
+edit = false
+
+instructions = """
+Review changes for:
+- persistence regressions
+- accidental delete capability exposure
+- docs drift against scripts and compose
+- unsafe assumptions about JFrog OSS capabilities
+"""
+

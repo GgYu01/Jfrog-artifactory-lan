@@ -1,0 +1,94 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: jfrog-artifactory-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres/data:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - artifactory_net
+
+  artifactory:
+    image: ${JFROG_DOCKER_REGISTRY}/jfrog/artifactory-oss:${ARTIFACTORY_VERSION}
+    container_name: jfrog-artifactory
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENABLE_MIGRATION: "y"
+      JF_SHARED_DATABASE_TYPE: postgresql
+      JF_SHARED_DATABASE_USERNAME: ${POSTGRES_USER}
+      JF_SHARED_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      JF_SHARED_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      JF_SHARED_DATABASE_DRIVER: org.postgresql.Driver
+      JF_ROUTER_ENTRYPOINTS_EXTERNALPORT: ${ARTIFACTORY_ADMIN_PORT}
+    ports:
+      - "${ARTIFACTORY_ADMIN_BIND_HOST}:${ARTIFACTORY_ADMIN_PORT}:${ARTIFACTORY_ADMIN_PORT}"
+      - "${ARTIFACTORY_ADMIN_BIND_HOST}:${ARTIFACTORY_SERVICE_PORT}:8081"
+    volumes:
+      - ./data/artifactory/var:/var/opt/jfrog/artifactory
+      - ./data/artifactory/var/bootstrap:/var/opt/jfrog/artifactory/bootstrap
+      - ./data/artifactory/var/data:/var/opt/jfrog/artifactory/data
+      - ./data/artifactory/var/etc:/var/opt/jfrog/artifactory/etc
+      - ./data/artifactory/var/log:/var/opt/jfrog/artifactory/log
+      - ./data/artifactory/var/backup:/var/opt/jfrog/artifactory/backup
+      - ./data/artifactory/var/etc/access:/var/opt/jfrog/artifactory/etc/access
+      - ./data/artifactory/var/etc/security:/var/opt/jfrog/artifactory/etc/security
+      - ./data/artifactory/var/etc/artifactory:/var/opt/jfrog/artifactory/etc/artifactory
+      - ./data/artifactory/var/etc/router:/var/opt/jfrog/artifactory/etc/router
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "10"
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 32000
+        hard: 40000
+    networks:
+      - artifactory_net
+
+  portal:
+    build:
+      context: ./portal
+    container_name: jfrog-artifactory-portal
+    restart: unless-stopped
+    depends_on:
+      - artifactory
+    environment:
+      PORT: 8080
+      PORTAL_USERNAME: ${PORTAL_USERNAME}
+      PORTAL_PASSWORD: ${PORTAL_PASSWORD}
+      ARTIFACTORY_BASE_URL: http://artifactory:${ARTIFACTORY_ADMIN_PORT}
+      ARTIFACTORY_ADMIN_USER: ${ARTIFACTORY_ADMIN_USER}
+      ARTIFACTORY_ADMIN_PASSWORD: ${ARTIFACTORY_ADMIN_PASSWORD}
+      CONTENT_REPOSITORY_KEY: ${CONTENT_REPOSITORY_KEY}
+      FIRMWARE_PREFIX: ${FIRMWARE_PREFIX}
+      PATCH_PREFIX: ${PATCH_PREFIX}
+    ports:
+      - "${PORTAL_PORT}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - artifactory_net
+
+networks:
+  artifactory_net:
+    driver: bridge

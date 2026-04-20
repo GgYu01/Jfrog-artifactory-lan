@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JFrog 局域网投递台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="chrome"></div>
+    <main class="shell">
+      <header class="hero">
+        <div class="hero__eyebrow">LAN ARTIFACT DESK</div>
+        <div class="hero__heading">
+          <h1>刷机包与补丁包投递台</h1>
+          <p>普通用户只做上传与下载，删除入口默认关闭。管理端仍保留在 Artifactory 后台。</p>
+        </div>
+        <div class="hero__meta" id="portal-meta">正在读取仓库配置…</div>
+      </header>
+
+      <section class="grid">
+        <article class="deck" data-area="firmware">
+          <div class="deck__header">
+            <div>
+              <span class="deck__kicker">Firmware Lane</span>
+              <h2>刷机镜像包</h2>
+            </div>
+            <button class="ghost" data-action="refresh">刷新</button>
+          </div>
+          <label class="field">
+            <span>子路径</span>
+            <input type="text" data-role="path" placeholder="例如 device-a/build-20260419" />
+          </label>
+          <label class="upload">
+            <input type="file" data-role="file" />
+            <span>选择固件或刷机相关压缩包</span>
+          </label>
+          <button class="primary" data-action="upload">上传到刷机包区域</button>
+          <p class="status" data-role="status">等待操作</p>
+          <div class="listing">
+            <div class="listing__title">当前目录内容</div>
+            <ul data-role="list"></ul>
+          </div>
+        </article>
+
+        <article class="deck deck--accent" data-area="patch">
+          <div class="deck__header">
+            <div>
+              <span class="deck__kicker">Patch Lane</span>
+              <h2>补丁包</h2>
+            </div>
+            <button class="ghost" data-action="refresh">刷新</button>
+          </div>
+          <label class="field">
+            <span>子路径</span>
+            <input type="text" data-role="path" placeholder="例如 project-x/hotfix-01" />
+          </label>
+          <label class="upload">
+            <input type="file" data-role="file" />
+            <span>选择 patch 或增量更新包</span>
+          </label>
+          <button class="primary" data-action="upload">上传到补丁包区域</button>
+          <p class="status" data-role="status">等待操作</p>
+          <div class="listing">
+            <div class="listing__title">当前目录内容</div>
+            <ul data-role="list"></ul>
+          </div>
+        </article>
+      </section>
+
+      <footer class="footnote">
+        <span>普通用户账号固定为 <strong>user / user</strong></span>
+        <span>管理后台入口在 <strong>http://主机地址:8082</strong></span>
+      </footer>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
+
